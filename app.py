@@ -53,6 +53,7 @@ def speech_to_text():
         return "Désolé, je n'ai pas compris."
     except sr.RequestError:
         return "Erreur avec le service de reconnaissance vocale."
+
 # ===========================
 # 4. Fonction du chatbot modifiée
 # ===========================
