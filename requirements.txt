@@ -3,4 +3,3 @@ speechrecognition
 pyaudio
 transformers
 torch
-pydub
