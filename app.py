@@ -1,82 +1,95 @@
 import streamlit as st
-import nltk
-from nltk.chat.util import Chat, reflections
 import speech_recognition as sr
+from transformers import AutoTokenizer, AutoModelForCausalLM
+import torch
 
-# ===========================
-# 1. Téléchargement des ressources NLTK
-# ===========================
-nltk.download('punkt')
+# ===========================================================
+# 1️⃣ Chargement du modèle IA
+# ===========================================================
+@st.cache_resource
+def load_model():
+    tokenizer = AutoTokenizer.from_pretrained("microsoft/DialoGPT-medium")
+    model = AutoModelForCausalLM.from_pretrained("microsoft/DialoGPT-medium")
+    return tokenizer, model
 
-# ===========================
-# 2. Définir un petit jeu de paires pour le chatbot
-# (À remplacer par ton propre fichier texte si besoin)
-# ===========================
-pairs = [
-    [
-        r"bonjour|salut|hey",
-        ["Bonjour ! Comment puis-je vous aider ?", "Salut ! Je suis là pour vous aider."]
-    ],
-    [
-        r"(.*) ton nom ?",
-        ["Je suis un chatbot vocal créé avec Streamlit et NLTK !"]
-    ],
-    [
-        r"(.*) (aide|aider)",
-        ["Je peux répondre à vos questions textuelles ou vocales."]
-    ],
-    [
-        r"quit|exit",
-        ["Au revoir !"]
-    ],
-    [
-        r"(.*)",
-        ["Je n'ai pas compris, peux-tu reformuler ?"]
-    ],
-]
+tokenizer, model = load_model()
 
-chatbot = Chat(pairs, reflections)
+# Historique des messages
+if "history" not in st.session_state:
+    st.session_state.history = None
 
-# ===========================
-# 3. Fonction de reconnaissance vocale
-# ===========================
-def speech_to_text():
+
+# ===========================================================
+# 2️⃣ Reconnaissance vocale
+# ===========================================================
+def transcribe_speech():
     recognizer = sr.Recognizer()
-    with sr.Microphone() as source:
-        st.write("🎤 Parlez maintenant...")
-        audio = recognizer.listen(source)
 
     try:
+        with sr.Microphone() as source:
+            st.info("🎤 Parlez maintenant...")
+            audio = recognizer.listen(source)
+
+        st.info("⏳ Transcription...")
         text = recognizer.recognize_google(audio, language="fr-FR")
         return text
+
     except sr.UnknownValueError:
         return "Désolé, je n'ai pas compris."
-    except sr.RequestError:
-        return "Erreur avec le service de reconnaissance vocale."
-# ===========================
-# 4. Fonction du chatbot modifiée
-# ===========================
-def chatbot_response(user_input):
-    return chatbot.respond(user_input)
+    except:
+        return "Erreur avec le microphone ou Google Speech."
 
-# ===========================
-# 5. Interface Streamlit
-# ===========================
-st.title("💬 Chatbot Vocal avec NLTK & Reconnaissance Vocale")
 
-st.write("Utilisez **du texte** ou **votre voix** pour discuter avec le chatbot.")
+# ===========================================================
+# 3️⃣ Assistant IA intelligent
+# ===========================================================
+def ia_response(message):
+    # encode le message utilisateur
+    input_ids = tokenizer.encode(message + tokenizer.eos_token, return_tensors="pt")
 
-# ----- Entrée textuelle -----
-text_input = st.text_input("Tapez votre message ici :")
+    # concaténer avec historique si existe
+    if st.session_state.history is not None:
+        bot_input = torch.cat([st.session_state.history, input_ids], dim=-1)
+    else:
+        bot_input = input_ids
 
-# Bouton vocal
-if st.button("🎤 Parler"):
-    user_speech = speech_to_text()
-    st.write(f"Vous avez dit : **{user_speech}**")
-    response = chatbot_response(user_speech)
-    st.write(f"🤖 Chatbot : {response}")
+    # réponse générée
+    st.session_state.history = model.generate(
+        bot_input,
+        max_length=250,
+        pad_token_id=tokenizer.eos_token_id
+    )
 
-# Traitement texte normal
-if text_input:
-    response = chatbot_response(text_input)
-    st.write(f"🤖 Chatbot : {response}")
+    response = tokenizer.decode(
+        st.session_state.history[:, bot_input.shape[-1]:][0],
+        skip_special_tokens=True
+    )
+
+    return response
+
+
+# ===========================================================
+# 4️⃣ Interface Streamlit
+# ===========================================================
+def main():
+    st.title("🤖 Assistant IA Vocal & Textuel")
+    st.write("📌 Posez vos questions par **texte ou voix**.")
+
+    # ======== Entrée textuelle ===========
+    user_text = st.text_input("💬 Votre message (texte) :")
+
+    if user_text:
+        bot_reply = ia_response(user_text)
+        st.write(f"🤖 **Assistant IA :** {bot_reply}")
+
+    # ======== Entrée vocale ===========
+    if st.button("🎤 Parler avec le micro"):
+        spoken_text = transcribe_speech()
+        st.write(f"🗣️ Vous avez dit : **{spoken_text}**")
+
+        bot_reply = ia_response(spoken_text)
+        st.write(f"🤖 **Assistant IA :** {bot_reply}")
+
+
+if __name__ == "__main__":
+    main()

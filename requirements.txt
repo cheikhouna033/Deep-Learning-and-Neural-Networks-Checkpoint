@@ -1,0 +1,6 @@
+streamlit
+speechrecognition
+pyaudio
+transformers
+torch
+pydub
