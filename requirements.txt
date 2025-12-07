@@ -3,3 +3,4 @@ speechrecognition
 pyaudio
 transformers
 torch
+nltk
