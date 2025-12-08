@@ -3,27 +3,24 @@ import nltk
 from nltk.chat.util import Chat, reflections
 import speech_recognition as sr
 
-# ===========================
-# 1. Téléchargement des ressources NLTK
-# ===========================
+# Téléchargement des ressources NLTK
 nltk.download('punkt')
 
-# ===========================
-# 2. Définir un petit jeu de paires pour le chatbot
-# (À remplacer par ton propre fichier texte si besoin)
-# ===========================
+# ============================================================
+# 1️⃣ Définir les paires du chatbot (basique)
+# ============================================================
 pairs = [
     [
         r"bonjour|salut|hey",
-        ["Bonjour ! Comment puis-je vous aider ?", "Salut ! Je suis là pour vous aider."]
+        ["Bonjour ! Comment puis-je vous aider ?"]
     ],
     [
-        r"(.*) ton nom ?",
-        ["Je suis un chatbot vocal créé avec Streamlit et NLTK !"]
+        r"(.*) ton nom",
+        ["Je suis un petit chatbot créé pour l'exercice !"]
     ],
     [
-        r"(.*) (aide|aider)",
-        ["Je peux répondre à vos questions textuelles ou vocales."]
+        r"(.*) aide",
+        ["Je peux répondre à des questions simples ou transcrire votre voix."]
     ],
     [
         r"quit|exit",
@@ -37,47 +34,48 @@ pairs = [
 
 chatbot = Chat(pairs, reflections)
 
-# ===========================
-# 3. Fonction de reconnaissance vocale
-# ===========================
-def speech_to_text():
+# ============================================================
+# 2️⃣ Fonction de reconnaissance vocale
+# ============================================================
+def transcribe_speech():
     recognizer = sr.Recognizer()
-    with sr.Microphone() as source:
-        st.write("🎤 Parlez maintenant...")
-        audio = recognizer.listen(source)
-
     try:
-        text = recognizer.recognize_google(audio, language="fr-FR")
-        return text
-    except sr.UnknownValueError:
+        with sr.Microphone() as source:
+            st.info("🎤 Parlez maintenant...")
+            audio = recognizer.listen(source)
+            st.info("⏳ Transcription en cours...")
+            text = recognizer.recognize_google(audio, language="fr-FR")
+            return text
+    except:
         return "Désolé, je n'ai pas compris."
-    except sr.RequestError:
-        return "Erreur avec le service de reconnaissance vocale."
 
-# ===========================
-# 4. Fonction du chatbot modifiée
-# ===========================
+# ============================================================
+# 3️⃣ Fonction de réponse du chatbot
+# ============================================================
 def chatbot_response(user_input):
     return chatbot.respond(user_input)
 
-# ===========================
-# 5. Interface Streamlit
-# ===========================
-st.title("💬 Chatbot Vocal avec NLTK & Reconnaissance Vocale")
+# ============================================================
+# 4️⃣ Interface Streamlit (TEXTE + VOIX)
+# ============================================================
+def main():
+    st.title("💬 Chatbot Vocal - Version du cours")
 
-st.write("Utilisez **du texte** ou **votre voix** pour discuter avec le chatbot.")
+    st.write("Vous pouvez taper un texte ou utiliser le microphone.")
 
-# ----- Entrée textuelle -----
-text_input = st.text_input("Tapez votre message ici :")
+    # ------ Entrée TEXTUELLE ------
+    user_text = st.text_input("Votre message (texte) :")
+    if user_text:
+        reply = chatbot_response(user_text)
+        st.write(f"🤖 Chatbot : {reply}")
 
-# Bouton vocal
-if st.button("🎤 Parler"):
-    user_speech = speech_to_text()
-    st.write(f"Vous avez dit : **{user_speech}**")
-    response = chatbot_response(user_speech)
-    st.write(f"🤖 Chatbot : {response}")
+    # ------ Entrée VOCALE ------
+    if st.button("🎤 Parler au micro"):
+        spoken_text = transcribe_speech()
+        st.write(f"🗣️ Vous avez dit : **{spoken_text}**")
 
-# Traitement texte normal
-if text_input:
-    response = chatbot_response(text_input)
-    st.write(f"🤖 Chatbot : {response}")
+        reply = chatbot_response(spoken_text)
+        st.write(f"🤖 Chatbot : {reply}")
+
+if __name__ == "__main__":
+    main()
